@@ -18,7 +18,7 @@ public:
         // キーボードのサブスクライバー (CoRE2用)
         sub_key = this->create_subscription<kk_driver_msg::msg::KeyCtrl>(
             "/keys" , rclcpp::QoS(10),
-            std::bind(&kk_template_node::call_back , this,
+            std::bind(&kk_template_node::key_callback , this,
             std::placeholders::_1)
         );
         

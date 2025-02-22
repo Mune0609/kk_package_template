@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(パッケージ名)
+project(kkcore)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -13,11 +13,11 @@ find_package(sensor_msgs REQUIRED)
 find_package(kk_driver_msg REQUIRED)
 
 ## 
-add_executable(ノード名 src/main.cpp)
-ament_target_dependencies(ノード名 std_msgs sensor_msgs rclcpp kk_driver_msg)
+add_executable(core_node src/main.cpp)
+ament_target_dependencies(core_node std_msgs sensor_msgs rclcpp kk_driver_msg)
 
 install(TARGETS
-  ノード名
+  core_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

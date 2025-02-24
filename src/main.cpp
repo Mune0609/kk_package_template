@@ -14,7 +14,8 @@ public:
     rclcpp::Publisher<kk_driver_msg::msg::BldcCmd>::SharedPtr bldc_cmd_sub;
     rclcpp::Publisher<kk_driver_msg::msg::C610Cmd>::SharedPtr c610_cmd_sub;
 
-    kk_driver_msg::msg::MotorCmd motor_cmd_msg;
+    kk_driver_msg::msg::MotorCmd motor1_cmd_msg;
+    kk_driver_msg::msg::MotorCmd motor2_cmd_msg;
     kk_driver_msg::msg::BldcCmd bldc_cmd_msg;
     kk_driver_msg::msg::C610Cmd c610_cmd_msg;
 
@@ -31,9 +32,9 @@ public:
             std::bind(&core_node::key_callback , this,
             std::placeholders::_1)
         );
-        motor_cmd_sub = this->create_publisher<kk_driver_msg::msg::MotorCmd>("/motor_cmd", rclcpp::QoS(10));
-        bldc_cmd_sub = this->create_publisher<kk_driver_msg::msg::BldcCmd>("/bldc_cmd", rclcpp::QoS(10));
-        c610_cmd_sub = this->create_publisher<kk_driver_msg::msg::C610Cmd>("/c610_cmd", rclcpp::QoS(10));
+        motor_cmd_sub = this->create_publisher<kk_driver_msg::msg::MotorCmd>("mtr/cmd", rclcpp::QoS(10));
+        bldc_cmd_sub = this->create_publisher<kk_driver_msg::msg::BldcCmd>("bldc/cmd", rclcpp::QoS(10));
+        c610_cmd_sub = this->create_publisher<kk_driver_msg::msg::C610Cmd>("c610/cmd", rclcpp::QoS(10));
     }
     
     bool mode = 0;
@@ -52,50 +53,64 @@ public:
         duty[3] =  x/sqrtf(2) + y/sqrtf(2);
         printf("a=%f , b=%f ,c=%f ,d=%f\n", duty[0], duty[1], duty[2], duty[3]);
 
+        // auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
+
         //送信するポート数に合わせて配列長を設定
-        motor_cmd_msg.port.resize(5);
-        motor_cmd_msg.ctrl.resize(5);
-        motor_cmd_msg.target.resize(5);
+        motor1_cmd_msg.child_id = 0;
+        motor1_cmd_msg.port.resize(2);
+        motor1_cmd_msg.ctrl.resize(2);
+        motor1_cmd_msg.target.resize(2);
+
+        motor2_cmd_msg.child_id = 1;
+        motor2_cmd_msg.port.resize(2);
+        motor2_cmd_msg.ctrl.resize(2);
+        motor2_cmd_msg.target.resize(2);
         
-        motor_cmd_msg.port[0] = 0;
-        motor_cmd_msg.target[0] = static_cast<int32_t>(duty[0]);
+        motor1_cmd_msg.port[0] = 0;
+        motor1_cmd_msg.ctrl[0] = 1;
+        motor1_cmd_msg.target[0] = static_cast<int32_t>(duty[0] * 0x3FFFFF);
 
-        motor_cmd_msg.port[1] = 1;
-        motor_cmd_msg.target[1] = static_cast<int32_t>(duty[1]);
+        motor1_cmd_msg.port[1] = 1;
+        motor1_cmd_msg.ctrl[1] = 1;
+        motor1_cmd_msg.target[1] = static_cast<int32_t>(duty[1] * 0x3FFFFF);
 
-        motor_cmd_msg.port[2] = 2;
-        motor_cmd_msg.target[2] = static_cast<int32_t>(duty[2]);
+        motor2_cmd_msg.port[0] = 2;
+        motor2_cmd_msg.ctrl[0] = 1;
+        motor2_cmd_msg.target[0] = static_cast<int32_t>(duty[2] * 0x3FFFFF);
 
-        motor_cmd_msg.port[3] = 3;
-        motor_cmd_msg.target[3] = static_cast<int32_t>(duty[3]);
+        motor2_cmd_msg.port[1] = 1;
+        motor2_cmd_msg.ctrl[1] = 1;
+        motor2_cmd_msg.target[1] = static_cast<int32_t>(duty[3] * 0x3FFFFF);
 
     }
 
     // Joyコンの処理
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg){
+        if (msg->buttons.size() < 3) return;
 
-        auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
-        auto bldc_cmd_msg = kk_driver_msg::msg::BldcCmd();
-        auto c610_cmd_msg = kk_driver_msg::msg::C610Cmd();
+        // auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
+        // auto bldc_cmd_msg = kk_driver_msg::msg::BldcCmd();
+        // auto c610_cmd_msg = kk_driver_msg::msg::C610Cmd();
 
         if(msg->axes[0] < -0.2 || msg->axes[0] > 0.2 || msg->axes[1] < -0.2 || msg->axes[1] > 0.2){ //4輪オムニ
-            float x_duty = ((msg->axes[0] - 128.0f) / 127.0f) * 0.7f;
-            float y_duty = -((msg->axes[1] - 128.0f) / 127.0f) * 0.7f;
-//                  pc.printf("x_duty=%f y_duty=%f\",x_duty,y_duty);
+            float x_duty = msg->axes[0];
+            float y_duty = msg->axes[1];
+
+            printf("x_duty=%f, y_duty=%f\n", x_duty, y_duty);
             Yonrin(x_duty, y_duty);
         }
 
         if (msg->buttons[0]){ //ターンテーブル
             if(tt_rot > 0){
                 tt_rot =  tt_rot - 1;
-                motor_cmd_msg.port[4] = 4;
-                motor_cmd_msg.target[4] = tt_rot;
+                motor1_cmd_msg.port[4] = 4;
+                motor1_cmd_msg.target[4] = tt_rot;
             }
         } else if (msg->buttons[3]){
             if(tt_rot < 255){
                 tt_rot =  tt_rot + 1;
-                motor_cmd_msg.port[4] = 4;
-                motor_cmd_msg.target[4] = tt_rot;
+                motor1_cmd_msg.port[4] = 4;
+                motor1_cmd_msg.target[4] = tt_rot;
             }
         }
 
@@ -116,7 +131,7 @@ public:
         bldc_cmd_msg.port[1] = 1;
         bldc_cmd_msg.spd[1] = br_right;
 
-        if(msg->buttons[10]){ //発射
+        if(msg->buttons[2]){ //発射
             while(launch > 360){
                 launch = launch + 1;
 
@@ -165,7 +180,8 @@ public:
             return result_pulse;
         }*/
        
-        motor_cmd_sub->publish(motor_cmd_msg);
+        motor_cmd_sub->publish(motor1_cmd_msg);
+        motor_cmd_sub->publish(motor2_cmd_msg);
         bldc_cmd_sub->publish(bldc_cmd_msg);
         c610_cmd_sub->publish(c610_cmd_msg);
 

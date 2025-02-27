@@ -16,6 +16,7 @@ public:
 
     kk_driver_msg::msg::MotorCmd motor1_cmd_msg;
     kk_driver_msg::msg::MotorCmd motor2_cmd_msg;
+    kk_driver_msg::msg::MotorCmd motor3_cmd_msg;
     kk_driver_msg::msg::BldcCmd bldc_cmd_msg;
     kk_driver_msg::msg::C610Cmd c610_cmd_msg;
 
@@ -74,7 +75,7 @@ public:
         motor1_cmd_msg.ctrl[1] = 1;
         motor1_cmd_msg.target[1] = static_cast<int32_t>(duty[1] * 0x3FFFFF);
 
-        motor2_cmd_msg.port[0] = 2;
+        motor2_cmd_msg.port[0] = 0;
         motor2_cmd_msg.ctrl[0] = 1;
         motor2_cmd_msg.target[0] = static_cast<int32_t>(duty[2] * 0x3FFFFF);
 
@@ -98,30 +99,52 @@ public:
 
             printf("x_duty=%f, y_duty=%f\n", x_duty, y_duty);
             Yonrin(x_duty, y_duty);
+        }else{
+            float x_duty = 0;
+            float y_duty = 0;
+
+            printf("x_duty=%f, y_duty=%f\n", x_duty, y_duty);
+            Yonrin(x_duty, y_duty);
         }
 
         if (msg->buttons[0]){ //ターンテーブル
             if(tt_rot > 0){
                 tt_rot =  tt_rot - 1;
-                motor1_cmd_msg.port[4] = 4;
-                motor1_cmd_msg.target[4] = tt_rot;
+
+                motor3_cmd_msg.child_id = 2;
+                motor3_cmd_msg.port.resize(2);
+                motor3_cmd_msg.ctrl.resize(2);
+                motor3_cmd_msg.target.resize(2);
+
+                motor3_cmd_msg.port[0] = 0;
+                motor3_cmd_msg.ctrl[0] = 1;
+                motor3_cmd_msg.target[0] = static_cast<int32_t>(tt_rot * 0x3FFFFF);
+
             }
         } else if (msg->buttons[3]){
             if(tt_rot < 255){
                 tt_rot =  tt_rot + 1;
-                motor1_cmd_msg.port[4] = 4;
-                motor1_cmd_msg.target[4] = tt_rot;
+
+                motor3_cmd_msg.child_id = 2;
+                motor3_cmd_msg.port.resize(2);
+                motor3_cmd_msg.ctrl.resize(2);
+                motor3_cmd_msg.target.resize(2);
+
+                motor3_cmd_msg.port[0] = 0;
+                motor3_cmd_msg.ctrl[0] = 1;
+                motor3_cmd_msg.target[0] = static_cast<int32_t>(tt_rot * 0x3FFFFF);
             }
         }
 
-        if (msg->axes[5] > 0.2){ //射出モード切替
-            br_left = 0x000F;
-            br_right = 0x000F;
-        } else if (msg->axes[5] <= 0.2){
-            br_left = 0x002F;
-            br_right = 0x002F;
+        if (msg->buttons[4]){ //射出モード切替
+            br_left = 0x3FFFFF;
+            br_right = 0x3FFFFF;
+        } else {
+            br_left = 0x0FFFFF;
+            br_right = 0x0FFFFF;
         }
 
+        bldc_cmd_msg.child_id = 0;
         bldc_cmd_msg.port.resize(2);
         bldc_cmd_msg.spd.resize(2);
 
@@ -135,7 +158,7 @@ public:
             while(launch > 360){
                 launch = launch + 1;
 
-                auto c610_cmd_msg = kk_driver_msg::msg::C610Cmd();
+                c610_cmd_msg.child_id = 0;
                 c610_cmd_msg.port.resize(1);
                 c610_cmd_msg.torque.resize(1);
 
@@ -182,6 +205,7 @@ public:
        
         motor_cmd_sub->publish(motor1_cmd_msg);
         motor_cmd_sub->publish(motor2_cmd_msg);
+        motor_cmd_sub->publish(motor3_cmd_msg);
         bldc_cmd_sub->publish(bldc_cmd_msg);
         c610_cmd_sub->publish(c610_cmd_msg);
 

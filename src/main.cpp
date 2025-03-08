@@ -39,19 +39,22 @@ public:
     }
     
     bool mode = 0;
-    float launch = 0;
+    int launch = 0;
+    float x_duty;
+    float y_duty;
     float duty[4]={0.0f};
     float tt_rot = 0;
+    //int X , Y = 0; //計算に使う座標
 
-    uint16_t br_left;
-    uint16_t br_right;
+    float br_left;
+    float br_right;
 
     void Yonrin(float x, float y)       //四輪オムニのpwm値出し
     {
-        duty[0] = -x/sqrtf(2) + y/sqrtf(2);
-        duty[1] = -x/sqrtf(2) - y/sqrtf(2);
-        duty[2] =  x/sqrtf(2) - y/sqrtf(2);
-        duty[3] =  x/sqrtf(2) + y/sqrtf(2);
+        duty[0] = -x + y;
+        duty[1] = -x - y;
+        duty[2] =  x - y;
+        duty[3] =  x + y;
         printf("a=%f , b=%f ,c=%f ,d=%f\n", duty[0], duty[1], duty[2], duty[3]);
 
         // auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
@@ -94,18 +97,18 @@ public:
         // auto c610_cmd_msg = kk_driver_msg::msg::C610Cmd();
 
         if(msg->axes[0] < -0.2 || msg->axes[0] > 0.2 || msg->axes[1] < -0.2 || msg->axes[1] > 0.2){ //4輪オムニ
-            float x_duty = msg->axes[0];
-            float y_duty = msg->axes[1];
+            x_duty = msg->axes[0];
+            y_duty = msg->axes[1];
 
-            printf("x_duty=%f, y_duty=%f\n", x_duty, y_duty);
             Yonrin(x_duty, y_duty);
         }else{
-            float x_duty = 0;
-            float y_duty = 0;
+            x_duty = 0;
+            y_duty = 0;
 
-            printf("x_duty=%f, y_duty=%f\n", x_duty, y_duty);
             Yonrin(x_duty, y_duty);
         }
+
+        printf("x_duty=%f, y_duty=%f\n", x_duty, y_duty);
 
         if (msg->buttons[0]){ //ターンテーブル
             if(tt_rot > 0){
@@ -136,6 +139,8 @@ public:
             }
         }
 
+        printf("tt_rot=%f\n", tt_rot);
+
         if (msg->buttons[4]){ //射出モード切替
             br_left = 0x3FFFFF;
             br_right = 0x3FFFFF;
@@ -165,43 +170,15 @@ public:
                 // 複数ポート分の設定
                 c610_cmd_msg.port[0] = 0;// ポート0のサーボ
                 c610_cmd_msg.torque[0] = 0x000F; // ポート0の指令値
+                
+                printf("launch=%d\n", launch);
 
             }
             launch = 0;
         }
 
-        /*int X , Y = 0; //計算に使う座標
-
-        void call_back(const kk_driver_msg::msg::KeyCtrl::SharedPtr msg){
-            //クライアントからの変位
-            int Xpoti = msg.x;
-            //int Ypoti = msg.y;
-
-            int max_min = 2000;//最大値、最小値を設定
-            if(Xpoti > max_min || Xpoti < max_min*-1){
-                if( Xpoti > max_min){
-                    Xpoti = max_min;
-                }else if(Xpoti < max_min*-1){
-                    Xpoti = max_min*-1;
-                }
-            }
-            X = Xpoti;
-            printf("X : %d , Y : %d\n" , X , Y);
-
-            auto pwm_cmd_msg = kk_driver_msg::msg::PwmCmd();
-            pwm_cmd_msg.child_id = 0;
-            pwm_cmd_msg.port = {0};
-            pwm_cmd_msg.pos.resize(1); 
-            pwm_cmd_msg.pos[0]= pulse_calculate( X , max_min);
-            pwm_cmd_msg.spd= {0xdf};
-            pub_pwm_cmd.publish(pwm_cmd_msg);
-        }
-
-        //マウスの位置と最大値、最小値
-        double pulse_calculate( int AmousePoti , int Amax_min){
-            int result_pulse = 1500 + 500 * AmousePoti/Amax_min ;
-            return result_pulse;
-        }*/
+        printf("br_left=%f, br_right=%f\n", br_left, br_right);
+        
        
         motor_cmd_sub->publish(motor1_cmd_msg);
         motor_cmd_sub->publish(motor2_cmd_msg);
@@ -213,6 +190,36 @@ public:
 
     // キー入力の処理
     void key_callback(const kk_driver_msg::msg::KeyCtrl::SharedPtr msg){
+
+        /*クライアントからの変位
+        int Xpoti = msg.x;
+        //int Ypoti = msg.y;
+
+        int max_min = 2000;//最大値、最小値を設定
+        if(Xpoti > max_min || Xpoti < max_min*-1){
+            if( Xpoti > max_min){
+                Xpoti = max_min;
+            }else if(Xpoti < max_min*-1){
+                Xpoti = max_min*-1;
+            }
+        }
+        X = Xpoti;
+        printf("X : %d , Y : %d\n" , X , Y);
+
+        auto pwm_cmd_msg = kk_driver_msg::msg::PwmCmd();
+        pwm_cmd_msg.child_id = 0;
+        pwm_cmd_msg.port = {0};
+        pwm_cmd_msg.pos.resize(1); 
+        pwm_cmd_msg.pos[0]= pulse_calculate( X , max_min);
+        pwm_cmd_msg.spd= {0xdf};
+        pub_pwm_cmd.publish(pwm_cmd_msg);
+
+
+        //マウスの位置と最大値、最小値
+        double pulse_calculate( int AmousePoti , int Amax_min){
+            int result_pulse = 1500 + 500 * AmousePoti/Amax_min ;
+            return result_pulse;
+        }*/
 
     }
     

@@ -51,10 +51,10 @@ public:
 
     void Yonrin(float x, float y)       //四輪オムニのpwm値出し
     {
-        duty[0] = -x + y;
-        duty[1] = -x - y;
-        duty[2] =  x - y;
-        duty[3] =  x + y;
+        duty[0] = (-x + y)/sqrtf(2);
+        duty[1] = (-x - y)/sqrtf(2);
+        duty[2] = ( x - y)/sqrtf(2);
+        duty[3] = ( x + y)/sqrtf(2);
         printf("a=%f , b=%f ,c=%f ,d=%f\n", duty[0], duty[1], duty[2], duty[3]);
 
         // auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
@@ -98,7 +98,7 @@ public:
 
         if(msg->axes[0] < -0.2 || msg->axes[0] > 0.2 || msg->axes[1] < -0.2 || msg->axes[1] > 0.2){ //4輪オムニ
             x_duty = msg->axes[0];
-            y_duty = msg->axes[1];
+            y_duty = -(msg->axes[1]);
 
             Yonrin(x_duty, y_duty);
         }else{
@@ -159,7 +159,8 @@ public:
         bldc_cmd_msg.port[1] = 1;
         bldc_cmd_msg.spd[1] = br_right;
 
-        if(msg->buttons[2]){ //発射
+        if(msg->buttons[6] && msg->buttons[4]){ //発射
+            printf("push\n");
             while(launch > 360){
                 launch = launch + 1;
 

@@ -38,13 +38,17 @@ public:
         c610_cmd_sub = this->create_publisher<kk_driver_msg::msg::C610Cmd>("c610/cmd", rclcpp::QoS(10));
     }
     
-    bool mode = 0;
+    bool test_count = false;
+    bool mode = false;
+    bool turn_sw = false;
     int launch = 0;
     float x_duty;
     float y_duty;
     float duty[4]={0.0f};
     float tt_rot = 0;
-    //int X , Y = 0; //計算に使う座標
+    float turn_encordor;
+    int center;
+    int X, Y = 0;  // 計算に使う座標
 
     float br_left;
     float br_right;
@@ -90,6 +94,39 @@ public:
 
     // Joyコンの処理
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg){
+
+        if(!test_count){//初期値設定
+            while (turn_sw)
+            {
+                motor3_cmd_msg.child_id = 2;
+                motor3_cmd_msg.port.resize(2);
+                motor3_cmd_msg.ctrl.resize(2);
+                motor3_cmd_msg.target.resize(2);
+    
+                motor3_cmd_msg.port[0] = 0;
+                motor3_cmd_msg.ctrl[0] = 1;
+                motor3_cmd_msg.target[0] = static_cast<int32_t>( -1 * 0x2FFFFF);
+                motor_cmd_sub->publish(motor3_cmd_msg);
+            }
+
+            while (turn_encordor == 2000)//中心へ向ける
+            {
+                motor3_cmd_msg.child_id = 2;
+                motor3_cmd_msg.port.resize(2);
+                motor3_cmd_msg.ctrl.resize(2);
+                motor3_cmd_msg.target.resize(2);
+    
+                motor3_cmd_msg.port[0] = 0;
+                motor3_cmd_msg.ctrl[0] = 1;
+                motor3_cmd_msg.target[0] = static_cast<int32_t>(0x2FFFFF);
+                motor_cmd_sub->publish(motor3_cmd_msg);
+            }
+
+            //center = sub_key.mouse_dx;
+
+            test_count = true;
+        }
+
         if (msg->buttons.size() < 3) return;
 
         // auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
@@ -110,7 +147,7 @@ public:
 
         printf("x_duty=%f, y_duty=%f\n", x_duty, y_duty);
 
-        if (msg->buttons[0]){ //ターンテーブル
+        /*if (msg->buttons[0]){ //ターンテーブル
             if(tt_rot > 0){
                 tt_rot =  tt_rot - 1;
 
@@ -139,7 +176,7 @@ public:
             }
         }
 
-        printf("tt_rot=%f\n", tt_rot);
+        printf("tt_rot=%f\n", tt_rot);*/
 
         if (msg->buttons[4]){ //射出モード切替
             br_left = 0x3FFFFF;
@@ -192,38 +229,51 @@ public:
     // キー入力の処理
     void key_callback(const kk_driver_msg::msg::KeyCtrl::SharedPtr msg){
 
-        /*クライアントからの変位
-        int Xpoti = msg.x;
-        //int Ypoti = msg.y;
+        //クライアントからの変位
+        int Xpoti = msg->x;
+        //int Ypoti = msg->y;
 
-        int max_min = 2000;//最大値、最小値を設定
-        if(Xpoti > max_min || Xpoti < max_min*-1){
-            if( Xpoti > max_min){
-                Xpoti = max_min;
-            }else if(Xpoti < max_min*-1){
-                Xpoti = max_min*-1;
+        int X_limit = 2000;//最大値、最小値を設定
+        if(Xpoti > X_limit || Xpoti < X_limit*-1){
+            if( Xpoti > X_limit){
+                Xpoti = X_limit;
+            }else if(Xpoti < X_limit*-1){
+                Xpoti = X_limit*-1;
             }
-        }
-        X = Xpoti;
-        printf("X : %d , Y : %d\n" , X , Y);
 
-        auto pwm_cmd_msg = kk_driver_msg::msg::PwmCmd();
+        }
+        printf("X : %d\n" , Xpoti);
+
+        /*auto pwm_cmd_msg = kk_driver_msg::msg::PwmCmd();
         pwm_cmd_msg.child_id = 0;
         pwm_cmd_msg.port = {0};
         pwm_cmd_msg.pos.resize(1); 
         pwm_cmd_msg.pos[0]= pulse_calculate( X , max_min);
         pwm_cmd_msg.spd= {0xdf};
-        pub_pwm_cmd.publish(pwm_cmd_msg);
+        pub_pwm_cmd.publish(pwm_cmd_msg);*/
 
+        motor3_cmd_msg.child_id = 2;
+        motor3_cmd_msg.port.resize(2);
+        motor3_cmd_msg.ctrl.resize(2);
+        motor3_cmd_msg.target.resize(2);
 
-        //マウスの位置と最大値、最小値
-        double pulse_calculate( int AmousePoti , int Amax_min){
-            int result_pulse = 1500 + 500 * AmousePoti/Amax_min ;
-            return result_pulse;
-        }*/
+        motor3_cmd_msg.port[0] = 0;
+        motor3_cmd_msg.ctrl[0] = 1;
+        motor3_cmd_msg.target[0] = static_cast<int32_t>(tt_rot * 0x3FFFFF);
+
+        motor_cmd_sub->publish(motor1_cmd_msg);
+        motor_cmd_sub->publish(motor2_cmd_msg);
+        motor_cmd_sub->publish(motor3_cmd_msg);
+        bldc_cmd_sub->publish(bldc_cmd_msg);
+        c610_cmd_sub->publish(c610_cmd_msg);
 
     }
     
+    //マウスの位置と最大値、最小値
+    double pulse_calculate( int AmousePoti , int Amax_min){
+        int result_pulse = 1500 + 500 * AmousePoti/Amax_min;
+        return result_pulse;
+    }
 };
 
 

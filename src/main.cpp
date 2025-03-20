@@ -10,6 +10,7 @@ class core_node : public rclcpp::Node{
 public:
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr sub_joy;
     rclcpp::Subscription<kk_driver_msg::msg::KeyCtrl>::SharedPtr sub_key;
+    //rclcpp::Subscription<kk_driver_msg::msg::Encoder>::SharedPtr encordor;
     rclcpp::Publisher<kk_driver_msg::msg::MotorCmd>::SharedPtr motor_cmd_sub;
     rclcpp::Publisher<kk_driver_msg::msg::BldcCmd>::SharedPtr bldc_cmd_sub;
     rclcpp::Publisher<kk_driver_msg::msg::C610Cmd>::SharedPtr c610_cmd_sub;
@@ -46,7 +47,7 @@ public:
     float y_duty;
     float duty[4]={0.0f};
     float tt_rot = 0;
-    float turn_encordor;
+    float tc = 0;
     int center;
     int X, Y = 0;  // 計算に使う座標
 
@@ -59,7 +60,7 @@ public:
         duty[1] = (-x - y)/sqrtf(2);
         duty[2] = ( x - y)/sqrtf(2);
         duty[3] = ( x + y)/sqrtf(2);
-        printf("a=%f , b=%f ,c=%f ,d=%f\n", duty[0], duty[1], duty[2], duty[3]);
+        printf("前=%f , 右=%f ,後=%f ,左=%f\n", duty[2], duty[0], duty[1], duty[3]);
 
         // auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
 
@@ -92,11 +93,12 @@ public:
 
     }
 
+
     // Joyコンの処理
     void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg){
 
         if(!test_count){//初期値設定
-            while (turn_sw)
+            /*while (turn_sw)
             {
                 motor3_cmd_msg.child_id = 2;
                 motor3_cmd_msg.port.resize(2);
@@ -109,8 +111,20 @@ public:
                 motor_cmd_sub->publish(motor3_cmd_msg);
             }
 
-            while (turn_encordor == 2000)//中心へ向ける
+            motor3_cmd_msg.child_id = 2;
+            motor3_cmd_msg.port.resize(2);
+            motor3_cmd_msg.ctrl.resize(2);
+            motor3_cmd_msg.target.resize(2);
+
+            motor3_cmd_msg.port[0] = 0;
+            motor3_cmd_msg.ctrl[0] = 1;
+            motor3_cmd_msg.target[0] = static_cast<int32_t>(0);
+            motor_cmd_sub->publish(motor3_cmd_msg);
+
+            while (tc < 2000)//中心へ向ける
             {
+                tc = 0;
+
                 motor3_cmd_msg.child_id = 2;
                 motor3_cmd_msg.port.resize(2);
                 motor3_cmd_msg.ctrl.resize(2);
@@ -122,12 +136,20 @@ public:
                 motor_cmd_sub->publish(motor3_cmd_msg);
             }
 
+            motor3_cmd_msg.child_id = 2;
+            motor3_cmd_msg.port.resize(2);
+            motor3_cmd_msg.ctrl.resize(2);
+            motor3_cmd_msg.target.resize(2);
+
+            motor3_cmd_msg.port[0] = 0;
+            motor3_cmd_msg.ctrl[0] = 1;
+            motor3_cmd_msg.target[0] = static_cast<int32_t>(0);
+            motor_cmd_sub->publish(motor3_cmd_msg);
+
             //center = sub_key.mouse_dx;
 
-            test_count = true;
+            test_count = true;*/
         }
-
-        if (msg->buttons.size() < 3) return;
 
         // auto motor_cmd_msg = kk_driver_msg::msg::MotorCmd();
         // auto bldc_cmd_msg = kk_driver_msg::msg::BldcCmd();
@@ -177,46 +199,6 @@ public:
         }
 
         printf("tt_rot=%f\n", tt_rot);*/
-
-        if (msg->buttons[4]){ //射出モード切替
-            br_left = 0x3FFFFF;
-            br_right = 0x3FFFFF;
-        } else {
-            br_left = 0x0FFFFF;
-            br_right = 0x0FFFFF;
-        }
-
-        bldc_cmd_msg.child_id = 0;
-        bldc_cmd_msg.port.resize(2);
-        bldc_cmd_msg.spd.resize(2);
-
-        bldc_cmd_msg.port[0] = 0;
-        bldc_cmd_msg.spd[0] = br_left;
-
-        bldc_cmd_msg.port[1] = 1;
-        bldc_cmd_msg.spd[1] = br_right;
-
-        if(msg->buttons[6] && msg->buttons[4]){ //発射
-            printf("push\n");
-            while(launch > 360){
-                launch = launch + 1;
-
-                c610_cmd_msg.child_id = 0;
-                c610_cmd_msg.port.resize(1);
-                c610_cmd_msg.torque.resize(1);
-
-                // 複数ポート分の設定
-                c610_cmd_msg.port[0] = 0;// ポート0のサーボ
-                c610_cmd_msg.torque[0] = 0x000F; // ポート0の指令値
-                
-                printf("launch=%d\n", launch);
-
-            }
-            launch = 0;
-        }
-
-        printf("br_left=%f, br_right=%f\n", br_left, br_right);
-        
        
         motor_cmd_sub->publish(motor1_cmd_msg);
         motor_cmd_sub->publish(motor2_cmd_msg);
@@ -260,6 +242,56 @@ public:
         motor3_cmd_msg.port[0] = 0;
         motor3_cmd_msg.ctrl[0] = 1;
         motor3_cmd_msg.target[0] = static_cast<int32_t>(tt_rot * 0x3FFFFF);
+
+        if (msg->keys[4]){ //射出モード切替
+            br_left = 0x3FFFFF;
+            br_right = 0x3FFFFF;
+        } else {
+            br_left = 0x0FFFFF;
+            br_right = 0x0FFFFF;
+        }
+
+        bldc_cmd_msg.child_id = 0;
+        bldc_cmd_msg.port.resize(2);
+        bldc_cmd_msg.spd.resize(2);
+
+        bldc_cmd_msg.port[0] = 0;
+        bldc_cmd_msg.spd[0] = br_left;
+
+        bldc_cmd_msg.port[1] = 1;
+        bldc_cmd_msg.spd[1] = br_right;
+
+        printf("br_left=%f, br_right=%f\n", br_left, br_right);
+
+        if(msg->keys[6] && msg->keys[4]){ //発射
+            printf("push\n");
+            while(launch < 360){
+                launch = launch + 1;
+
+                c610_cmd_msg.child_id = 0;
+                c610_cmd_msg.port.resize(1);
+                c610_cmd_msg.torque.resize(1);
+
+                // 複数ポート分の設定
+                c610_cmd_msg.port[0] = 0;// ポート0のサーボ
+                c610_cmd_msg.torque[0] = 0x000F; // ポート0の指令値
+
+                c610_cmd_sub->publish(c610_cmd_msg);
+                
+                printf("launch=%d\n", launch);
+
+            }
+            c610_cmd_msg.child_id = 0;
+            c610_cmd_msg.port.resize(1);
+            c610_cmd_msg.torque.resize(1);
+
+            // 複数ポート分の設定
+            c610_cmd_msg.port[0] = 0;// ポート0のサーボ
+            c610_cmd_msg.torque[0] = 0x00; // ポート0の指令値
+
+            c610_cmd_sub->publish(c610_cmd_msg);
+            launch = 0;
+        }
 
         motor_cmd_sub->publish(motor1_cmd_msg);
         motor_cmd_sub->publish(motor2_cmd_msg);

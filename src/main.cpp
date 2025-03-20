@@ -52,7 +52,7 @@ public:
     float x_duty;
     float y_duty;
     float duty[4]={0.0f};
-    float tt_rot = 0;
+    float tt_duty = 0x1FFFFF;
     float front_e;
     float rear_e;
     float right_e;
@@ -174,6 +174,19 @@ public:
 
     // Joyコンの処理
     void core_callback(const kk_driver_msg::msg::Core::SharedPtr msg){
+
+        if(msg->limit == 0){
+            tt_duty = 0;
+        }
+
+        motor3_cmd_msg.child_id = 2;
+        motor3_cmd_msg.port.resize(1);
+        motor3_cmd_msg.ctrl.resize(1);
+        motor3_cmd_msg.target.resize(1);
+
+        motor3_cmd_msg.port[0] = 0;
+        motor3_cmd_msg.ctrl[0] = 1;
+        motor3_cmd_msg.target[0] = static_cast<int32_t>(tt_duty);
 
         /*if (!test_count){ //初期値設定
             while (msg->limit == true)
@@ -300,7 +313,6 @@ public:
             }else if(Xpoti < X_limit*-1){
                 Xpoti = X_limit*-1;
             }
-
         }
         printf("X : %d\n" , Xpoti);
 
